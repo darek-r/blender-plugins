@@ -1,1 +1,4 @@
-# blender-plugins
+blender-plugins
+=======
+
+Colection of Blender addons
