@@ -62,6 +62,38 @@ class AddHouseWindowMesh(Operator, AddObjectHelper):
                                  default=0.1,
                                  description='Frame width (FrameWidth * 2 < Width)')
 
+    @staticmethod
+    def add_face(vertices, faces, vectors):
+
+        # True until we find proof it isn't
+        face_exists = True
+
+        # List of face vertices
+        v_index = []
+
+        # Check vertices table for already existing vectors, if not add new one
+        for v in vectors:
+            try:
+                v_index_temp = vertices.index(v)
+                v_index.append(v_index_temp)
+            except ValueError:
+                vertices.append(v)
+                v_index.append(len(vertices)-1)
+                face_exists = False     # Vertices doesn't exist so face either
+
+        # Check faces array for duplicate
+        if face_exists:
+            new_face = v_index.copy()
+            new_face.sort()
+            for f in faces:
+                old_face = f.copy()
+                old_face.sort()
+                if old_face == new_face:
+                    return "DUPLICATE"
+
+        faces.append(v_index)
+        return "SUCCESS"
+
     def generate_window_model(self):
         vertices = []
         faces = []
@@ -72,6 +104,9 @@ class AddHouseWindowMesh(Operator, AddObjectHelper):
                          Vector((0, 1, 0))])
 
         faces.append([0, 1, 2, 3])
+
+        self.add_face(vertices, faces, [Vector((0, 1, -1)), Vector((1, 1, -1)), Vector((1, 1, 0)), Vector((0, 1, 0))])
+        self.add_face(vertices, faces, [Vector((1, 1, -1)), Vector((0, 1, -1)), Vector((1, 1, 0)), Vector((0, 1, 0))])
 
         return vertices, [], faces
 
