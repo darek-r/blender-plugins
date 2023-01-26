@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Add House Window Mesh Plugin",
     "author": "darek-r",
-    "version": (0, 1, 0),
+    "version": (0, 2, 1),
     "blender": (2, 80, 0),
     "location": "View3D > Add > Add House Window Object",
     "description": "Generates house window object and allows further size modification ",
@@ -45,23 +45,28 @@ class AddHouseWindowMesh(Operator, AddObjectHelper):
     pp_Width: FloatProperty(attr='pp_Width',
                             name='Width',
                             default=1.0,
+                            min=0.001,
                             description='Width of window')
 
     pp_Height: FloatProperty(attr='pp_Height',
                              name='Height',
                              default=1.0,
+                             min=0.001,
                              description='Height of window')
 
     pp_Depth: FloatProperty(attr='pp_Depth',
                             name='Depth',
                             default=0.1,
+                            min=0.001,
                             description='Depth of window')
 
     pp_FrameWidth: FloatProperty(attr='pp_FrameWidth',
                                  name='Frame Width',
                                  default=0.1,
+                                 min=0.0001,
                                  description='Frame width (FrameWidth * 2 < Width)')
 
+    # Add face without duplicates
     @staticmethod
     def add_face(vertices, faces, vectors):
 
@@ -79,7 +84,7 @@ class AddHouseWindowMesh(Operator, AddObjectHelper):
             except ValueError:
                 vertices.append(v)
                 v_index.append(len(vertices)-1)
-                face_exists = False     # Vertices doesn't exist so face either
+                face_exists = False     # Vertex doesn't exist so face either
 
         # Check faces array for duplicate
         if face_exists:
@@ -98,15 +103,107 @@ class AddHouseWindowMesh(Operator, AddObjectHelper):
         vertices = []
         faces = []
 
-        vertices.extend([Vector((self.pp_Width, 0, 0)),
-                         Vector((1, 0, 0)),
-                         Vector((1, 1, 0)),
-                         Vector((0, 1, 0))])
+        # Frame width should be two times smaller than window width
+        if self.pp_FrameWidth * 2 > self.pp_Width:
+            self.pp_FrameWidth = self.pp_Width / 2 - 0.0001
 
-        faces.append([0, 1, 2, 3])
+        if self.pp_FrameWidth * 2 > self.pp_Height:
+            self.pp_FrameWidth = self.pp_Height / 2 - 0.0001
 
-        self.add_face(vertices, faces, [Vector((0, 1, -1)), Vector((1, 1, -1)), Vector((1, 1, 0)), Vector((0, 1, 0))])
-        self.add_face(vertices, faces, [Vector((1, 1, -1)), Vector((0, 1, -1)), Vector((1, 1, 0)), Vector((0, 1, 0))])
+        # Simple window
+        # Front
+        self.add_face(vertices, faces, [Vector((0, 0, 0)),
+                                        Vector((self.pp_Width, 0, 0)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, 0, self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, 0, self.pp_FrameWidth))])
+        self.add_face(vertices, faces,
+                      [Vector((0, 0, self.pp_Height)),
+                       Vector((self.pp_Width, 0, self.pp_Height)),
+                       Vector((self.pp_Width - self.pp_FrameWidth, 0, self.pp_Height - self.pp_FrameWidth)),
+                       Vector((self.pp_FrameWidth, 0, self.pp_Height - self.pp_FrameWidth))])
+        self.add_face(vertices, faces,
+                      [Vector((0, 0, 0)),
+                       Vector((self.pp_FrameWidth, 0, self.pp_FrameWidth)),
+                       Vector((self.pp_FrameWidth, 0, self.pp_Height - self.pp_FrameWidth)),
+                       Vector((0, 0, self.pp_Height))])
+        self.add_face(vertices, faces,
+                      [Vector((self.pp_Width - self.pp_FrameWidth, 0, self.pp_FrameWidth)),
+                       Vector((self.pp_Width, 0, 0)),
+                       Vector((self.pp_Width, 0, self.pp_Height)),
+                       Vector((self.pp_Width - self.pp_FrameWidth, 0, self.pp_Height - self.pp_FrameWidth))])
+
+        # Back
+        self.add_face(vertices, faces, [Vector((0, self.pp_Depth, 0)),
+                                        Vector((self.pp_Width, self.pp_Depth, 0)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth, self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, self.pp_Depth, self.pp_FrameWidth))])
+        self.add_face(vertices, faces,
+                      [Vector((0, self.pp_Depth, self.pp_Height)),
+                       Vector((self.pp_Width, self.pp_Depth, self.pp_Height)),
+                       Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth, self.pp_Height - self.pp_FrameWidth)),
+                       Vector((self.pp_FrameWidth, self.pp_Depth, self.pp_Height - self.pp_FrameWidth))])
+        self.add_face(vertices, faces,
+                      [Vector((0, self.pp_Depth, 0)),
+                       Vector((self.pp_FrameWidth, self.pp_Depth, self.pp_FrameWidth)),
+                       Vector((self.pp_FrameWidth, self.pp_Depth, self.pp_Height - self.pp_FrameWidth)),
+                       Vector((0, self.pp_Depth, self.pp_Height))])
+        self.add_face(vertices, faces,
+                      [Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth, self.pp_FrameWidth)),
+                       Vector((self.pp_Width, self.pp_Depth, 0)),
+                       Vector((self.pp_Width, self.pp_Depth, self.pp_Height)),
+                       Vector((self.pp_Width - self.pp_FrameWidth,
+                               self.pp_Depth, self.pp_Height - self.pp_FrameWidth))])
+
+        # Depth fill
+        self.add_face(vertices, faces, [Vector((0, self.pp_Depth, 0)),
+                                        Vector((0, 0, 0)),
+                                        Vector((0, 0, self.pp_Height)),
+                                        Vector((0, self.pp_Depth, self.pp_Height))])
+        self.add_face(vertices, faces, [Vector((0, self.pp_Depth, 0)),
+                                        Vector((0, 0, 0)),
+                                        Vector((self.pp_Width, 0, 0)),
+                                        Vector((self.pp_Width, self.pp_Depth, 0))])
+        self.add_face(vertices, faces, [Vector((self.pp_Width, self.pp_Depth, 0)),
+                                        Vector((self.pp_Width, 0, 0)),
+                                        Vector((self.pp_Width, 0, self.pp_Height)),
+                                        Vector((self.pp_Width, self.pp_Depth, self.pp_Height))])
+        self.add_face(vertices, faces, [Vector((0, self.pp_Depth, self.pp_Height)),
+                                        Vector((0, 0, self.pp_Height)),
+                                        Vector((self.pp_Width, 0, self.pp_Height)),
+                                        Vector((self.pp_Width, self.pp_Depth, self.pp_Height))])
+
+        self.add_face(vertices, faces, [Vector((self.pp_FrameWidth, self.pp_Depth, self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, 0, self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, 0, self.pp_Height - self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_Height - self.pp_FrameWidth))])
+        self.add_face(vertices, faces, [Vector((self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, 0,
+                                                self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, 0,
+                                                self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_FrameWidth))])
+        self.add_face(vertices, faces, [Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, 0,
+                                                self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, 0,
+                                                self.pp_Height - self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_Height - self.pp_FrameWidth))])
+        self.add_face(vertices, faces, [Vector((self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_Height - self.pp_FrameWidth)),
+                                        Vector((self.pp_FrameWidth, 0,
+                                                self.pp_Height - self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, 0,
+                                                self.pp_Height - self.pp_FrameWidth)),
+                                        Vector((self.pp_Width - self.pp_FrameWidth, self.pp_Depth,
+                                                self.pp_Height - self.pp_FrameWidth))])
+
+        # print("\nVertices:\n", vertices)
+        # print("\nFaces:\n", faces)
 
         return vertices, [], faces
 
@@ -170,8 +267,7 @@ class AddHouseWindowMesh(Operator, AddObjectHelper):
                 mesh = bpy.data.meshes.new(name='House Window')
                 vertices, edges, faces = self.generate_window_model()
                 mesh.from_pydata(vertices, edges, faces)
-                # mesh.validate(verbose=True)
-
+                # mesh.validate()
                 obj = object_utils.object_data_add(context, mesh, operator=self)
 
             obj.data["houseWindow"] = True
